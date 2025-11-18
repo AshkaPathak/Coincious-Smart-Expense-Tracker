@@ -14,13 +14,22 @@ import {
   Download,
   AlertTriangle,
   Save,
-  Shield
+  Shield,
+  Loader2 // <-- ADDED
 } from 'lucide-react';
+import { useAuth } from '../../App'; // <-- ADDED
+import { supabase } from '../../utils/supabase/client'; // <-- ADDED
+import { useNavigate } from 'react-router-dom'; // <-- ADDED
+import { toast } from 'sonner'; // <-- ADDED
 
 export function Settings() {
   const { theme, toggleTheme } = useTheme();
-    const isDark = theme === 'dark';
+  const isDark = theme === 'dark';
+  const { user } = useAuth(); // <-- ADDED
+  const navigate = useNavigate(); // <-- ADDED
+
   const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // <-- ADDED
   const [notifications, setNotifications] = useState({
     email: true,
     expense: true,
@@ -55,6 +64,47 @@ export function Settings() {
   const handleSaveSettings = () => {
     // Here you would typically save settings to your backend
     console.log('Saving settings:', { notifications, preferences, privacy });
+    toast.success('Settings saved!'); // <-- Example notification
+  };
+
+  // +++ NEW FUNCTION FOR DELETING ACCOUNT +++
+  const handleDeleteAccount = async () => {
+    // 1. Confirm with the user
+    if (!window.confirm("Are you sure? This will permanently delete your account and all associated data. This action cannot be undone.")) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    const toastId = toast.loading('Deleting your account...');
+
+    try {
+      // 3. Get session token to authenticate with our backend
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('You must be logged in to delete your account.');
+
+      // 4. Call our new backend /api/user route
+      const response = await fetch('http://localhost:8000/api/user', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete account.');
+      }
+
+      // 5. Success! Log the user out and redirect
+      toast.success('Account deleted successfully. You will be logged out.', { id: toastId });
+      await supabase.auth.signOut();
+      navigate('/login'); // Redirect to login page
+
+    } catch (error: any) {
+      console.error('Error deleting account:', error);
+      toast.error(error.message, { id: toastId });
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -91,9 +141,11 @@ export function Settings() {
               </div>
               <div className="flex items-center gap-2">
                 <Sun className="h-4 w-4" />
+                {/* --- FIXED TOGGLE BUTTON: match style with below --- */}
                 <Switch
                   checked={isDark}
                   onCheckedChange={toggleTheme}
+                  className="data-[state=checked]:bg-purple-600 data-[state=unchecked]:bg-gray-200 transition-colors"
                 />
                 <Moon className="h-4 w-4" />
               </div>
@@ -101,69 +153,8 @@ export function Settings() {
           </CardContent>
         </Card>
 
-        {/* Notification Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5" />
-              Notifications
-            </CardTitle>
-            <CardDescription>Configure when and how you receive notifications</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive notifications via email</p>
-                </div>
-                <Switch
-                  checked={notifications.email}
-                  onCheckedChange={(checked) => handleNotificationChange('email', checked)}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <h4 className="font-medium">Notification Types</h4>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Expense Updates</Label>
-                    <p className="text-sm text-muted-foreground">When expenses are added or modified</p>
-                  </div>
-                  <Switch
-                    checked={notifications.expense}
-                    onCheckedChange={(checked) => handleNotificationChange('expense', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Group Activity</Label>
-                    <p className="text-sm text-muted-foreground">When someone joins or leaves a group</p>
-                  </div>
-                  <Switch
-                    checked={notifications.group}
-                    onCheckedChange={(checked) => handleNotificationChange('group', checked)}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Payment Reminders</Label>
-                    <p className="text-sm text-muted-foreground">When payments are due or received</p>
-                  </div>
-                  <Switch
-                    checked={notifications.payment}
-                    onCheckedChange={(checked) => handleNotificationChange('payment', checked)}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* REMOVE: Notification Settings */}
+        {/* <Card> ...Notifications... </Card> */}
 
         {/* Privacy & Security */}
         <Card>
@@ -175,6 +166,8 @@ export function Settings() {
             <CardDescription>Control your data privacy and security settings</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* REMOVE: Analytics Tracking */}
+            {/* 
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Analytics Tracking</Label>
@@ -187,9 +180,8 @@ export function Settings() {
                 onCheckedChange={(checked) => handlePrivacyChange('analytics', checked)}
               />
             </div>
-
             <Separator />
-
+            */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label>Data Sharing</Label>
@@ -197,9 +189,17 @@ export function Settings() {
                   Allow sharing data with trusted third-party services
                 </p>
               </div>
+              {/* --- FIXED BUTTON COLORS FOR CONTRAST, MATCH DARK MODE TOGGLE --- */}
               <Switch
                 checked={privacy.dataSharing}
                 onCheckedChange={(checked) => handlePrivacyChange('dataSharing', checked)}
+                className={`
+                  transition-colors
+                  data-[state=checked]:bg-purple-600
+                  data-[state=unchecked]:bg-gray-200
+                  border
+                  ${privacy.dataSharing ? 'border-purple-600' : 'border-gray-300'}
+                `}
               />
             </div>
           </CardContent>
@@ -232,9 +232,18 @@ export function Settings() {
                   <Label className="text-destructive">Delete Account</Label>
                   <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
                 </div>
-                <Button variant="destructive">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  Delete Account
+                {/* --- UPDATED BUTTON --- */}
+                <Button 
+                  variant="destructive" 
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                  )}
+                  {isDeleting ? 'Deleting...' : 'Delete Account'}
                 </Button>
               </div>
             </div>
