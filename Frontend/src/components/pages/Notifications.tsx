@@ -17,7 +17,6 @@ import {
   Receipt,
   TrendingUp,
   Calendar,
-  Settings,
   Loader2 // Import Loader
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -359,10 +358,7 @@ export function Notifications() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
-          </Button>
+          {/* --- REMOVED SETTINGS BUTTON --- */}
           {unreadCount > 0 && (
             <Button onClick={markAllAsRead}>
               <Check className="h-4 w-4 mr-2" />
